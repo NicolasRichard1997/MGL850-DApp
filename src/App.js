@@ -12,11 +12,13 @@ function App() {
 
   // Connect to MetaMask
   const connectWallet = async () => {
+    await window.ethereum.request({ method: "eth_requestAccounts" });
     if (window.ethereum) {
       const ethProvider = new ethers.BrowserProvider(window.ethereum);
       const signer = await ethProvider.getSigner();
       const network = await ethProvider.getNetwork();
-      if (network.chainId !== 11155111) {
+      console.log("Current network chainId:", network.chainId);
+      if (network.chainId !== 11155111n) {
         alert("Please connect to Sepolia testnet.");
         return;
       }
@@ -47,14 +49,28 @@ function App() {
   const loadPromises = async () => {
     if (!provider) return;
     const readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
-    const result = await readContract.getAllPromises();
-    const formatted = result.map((p) => ({
-      user: p.user,
-      message: p.message,
-      date: new Date(p.timestamp * 1000).toLocaleString(),
-    }));
-    setPromises(formatted.reverse());
+    
+    try {
+      const result = await readContract.getAllPromises();
+      if (!result || result.length === 0) {
+        setPromises([]);
+        return;
+      }
+
+      const formatted = result.map(p => ({
+        user: p.user,
+        message: p.message,
+        timestamp: Number(p.timestamp),
+        date: new Date(Number(p.timestamp) * 1000).toLocaleString(),
+      }));
+
+      setPromises(formatted.reverse());
+    } catch (error) {
+      console.warn("Failed to load promises, possibly empty array:", error);
+      setPromises([]);
+    }
   };
+
 
   useEffect(() => {
     if (walletConnected) {
