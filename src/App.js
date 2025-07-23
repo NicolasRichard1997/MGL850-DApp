@@ -36,12 +36,17 @@ function App() {
     if (!contract || promiseInput.length === 0 || promiseInput.length > 140) return;
     try {
       const tx = await contract.addPromise(promiseInput);
-      await tx.wait();
+
+      // ✅ Clear input and show alert immediately after sending transaction
       setPromiseInput("");
+      alert("Promesse soumise avec succès. Celle-ci sera visible lorsque la transaction sera confirmée.");
+
+      // ✅ Wait for confirmation, then reload
+      await tx.wait();
       loadPromises();
     } catch (err) {
       console.error(err);
-      alert("Transaction failed.");
+      alert("La transaction a échoué. Veuillez réessayer.");
     }
   };
 
