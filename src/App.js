@@ -47,10 +47,10 @@ function App() {
 
   // Load all promises
   const loadPromises = async () => {
-    if (!provider) return;
-    const readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
-    
     try {
+      const ethProvider = new ethers.BrowserProvider(window.ethereum || ethers.getDefaultProvider("sepolia"));
+      const readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, ethProvider);
+
       const result = await readContract.getAllPromises();
       if (!result || result.length === 0) {
         setPromises([]);
@@ -71,12 +71,10 @@ function App() {
     }
   };
 
-
   useEffect(() => {
-    if (walletConnected) {
-      loadPromises();
-    }
-  }, [walletConnected]);
+    loadPromises();
+  }, []);
+
 
   return (
     <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
