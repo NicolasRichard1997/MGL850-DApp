@@ -21,3 +21,53 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.*  # optional: for multiple envs like .env.development
+
+# Build output
+build/
+dist/
+out/
+
+# Hardhat artifacts (if using)
+artifacts/
+cache/
+typechain/
+coverage/
+
+# Remix files (if you're exporting locally)
+*.zip
+*.tmp
+
+# VSCode settings (optional, dev tools)
+.vscode/
+
+# MacOS/Windows
+.DS_Store
+Thumbs.db
+
+# React-specific
+*.log
+*.lock
+*.bak
+*.orig
+
+# Optional: compiled contract JSON files if you bundle them elsewhere
+src/contracts/*.json
+
+# Git folder itself (should never be added but just in case)
+.git/
+
+artifacts/
+cache/
+typechain/
+.states/
