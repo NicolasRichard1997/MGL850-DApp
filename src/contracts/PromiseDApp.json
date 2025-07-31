@@ -99,6 +99,19 @@
 		"type": "function"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_nickname",
+				"type": "string"
+			}
+		],
+		"name": "setNickname",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "getAllPromises",
 		"outputs": [
@@ -220,19 +233,6 @@
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "_nickname",
-				"type": "string"
-			}
-		],
-		"name": "setNickname",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	}
 ]

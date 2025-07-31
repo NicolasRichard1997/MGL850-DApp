@@ -1,4 +1,3 @@
-// src/App.js
 import React, { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from './contracts/PromiseDApp';
@@ -16,55 +15,86 @@ function App() {
   const [userAddress, setUserAddress] = useState("");
 
   const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert("Please install MetaMask.");
-      return;
-    }
+    try {
+      if (!window.ethereum) {
+        alert("Veuillez installer MetaMask.");
+        return;
+      }
 
-    await window.ethereum.request({ method: "eth_requestAccounts" });
-    const ethProvider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await ethProvider.getSigner();
-    const address = await signer.getAddress();
-    const c = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-    const network = await ethProvider.getNetwork();
-    if (network.chainId !== 11155111n) {
-      alert("Please connect to Sepolia testnet.");
-      return;
-    }
+      await window.ethereum.request({ method: "eth_requestAccounts" });
 
-    setUserAddress(address);
-    setWalletConnected(true);
-    setProvider(ethProvider);
-    setContract(c);
+      const ethProvider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await ethProvider.getSigner();
+      const address = await signer.getAddress();
+      const network = await ethProvider.getNetwork();
 
-    const existingNickname = await c.nicknames(address);
-    if (existingNickname && existingNickname.length > 0) {
-      setNickname(existingNickname);
-      setNicknameSet(true);
+      if (network.chainId !== 11155111n) {
+        alert("Veuillez vous connecter au réseau Sepolia.");
+        return;
+      }
+
+      const contractWithSigner = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      const contractWithProvider = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, ethProvider);
+
+      setUserAddress(address);
+      setWalletConnected(true);
+      setProvider(ethProvider);
+      setContract(contractWithSigner);
+
+      try {
+        const existingNickname = await contractWithProvider.getNickname(address);
+        if (existingNickname && existingNickname.length > 0) {
+          setNickname(existingNickname);
+          setNicknameSet(true);
+        }
+      } catch (err) {
+        console.warn("Impossible de récupérer le pseudonyme:", err);
+      }
+    } catch (err) {
+      console.error("Erreur dans connectWallet:", err);
+      alert("Erreur de connexion au portefeuille.");
     }
   };
 
   const handleSetNickname = async () => {
-    if (!nickname || !contract) return;
-    try {
-      const tx = await contract.setNickname(nickname, { gasLimit: 100_000 });
-      await tx.wait();
-      alert("Pseudonyme enregistré !");
-      setNicknameSet(true);
-    } catch (err) {
-      console.error(err);
-      alert("Erreur lors de l'enregistrement du pseudonyme.");
+  if (!nickname || nickname.trim().length === 0) {
+    alert("Le pseudonyme ne peut pas être vide.");
+    return;
+  }
+  if (!contract) {
+    alert("Contrat non connecté.");
+    return;
+  }
+
+  try {
+    const cleanNickname = nickname.trim();
+
+    if (cleanNickname.length > 20) {
+      alert("Le pseudonyme est trop long (max 20 caractères).");
+      return;
     }
-  };
+    
+    console.log("Setting nickname:", nickname);
+
+    const tx = await contract.setNickname(cleanNickname, { gasLimit: 100_000 });
+    await tx.wait();
+    alert("Pseudonyme enregistré !");
+    setNicknameSet(true);
+  } catch (err) {
+    console.error(err);
+    alert("Erreur lors de l'enregistrement du pseudonyme.");
+  }
+};
 
   const submitPromise = async () => {
     if (!contract || promiseInput.length === 0 || promiseInput.length > 140) return;
+
     try {
-      const tx = await contract.addPromise(promiseInput, category, { gasLimit: 100_000 });
+      const tx = await contract.addPromise(promiseInput, category);
+      await tx.wait();
+      alert("Promesse soumise !");
       setPromiseInput("");
       setCategory("Confession");
-      alert("Promesse soumise !");
-      await tx.wait();
       loadPromises();
     } catch (err) {
       console.error(err);
@@ -86,12 +116,21 @@ function App() {
       const formatted = await Promise.all(result.map(async (p, idx) => {
         const rawComments = await readContract.getComments(idx);
         const commentData = await Promise.all(rawComments.map(async c => {
-          const userNickname = await readContract.getNickname(c.user);
+          let userNickname = "🕵️ Anonyme";
+          try {
+            const fetchedNickname = await readContract.getNickname(c.user);
+            if (fetchedNickname && fetchedNickname.length > 0) {
+              userNickname = fetchedNickname;
+            }
+          } catch (e) {
+            console.warn(`Nickname not set for ${c.user}`);
+          }
+
           return {
             message: c.message,
             timestamp: Number(c.timestamp),
             date: new Date(Number(c.timestamp) * 1000).toLocaleString(),
-            nickname: userNickname || "🕵️ Anonyme"
+            nickname: userNickname
           };
         }));
 
@@ -119,11 +158,12 @@ function App() {
   const submitComment = async (promiseId) => {
     const text = commentInputs[promiseId];
     if (!contract || !text || text.length === 0 || text.length > 200) return;
+
     try {
-      const tx = await contract.addComment(promiseId, text, { gasLimit: 100_000 });
+      const tx = await contract.addComment(promiseId, text);
+      await tx.wait();
       setCommentInputs(prev => ({ ...prev, [promiseId]: "" }));
       alert("Commentaire envoyé !");
-      await tx.wait();
       loadPromises();
     } catch (err) {
       console.error(err);
