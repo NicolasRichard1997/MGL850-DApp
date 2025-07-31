@@ -1,6 +1,6 @@
 # WhisperChain
 
-**WhisperChain** is a decentralized confession wall built on the Ethereum Sepolia testnet. It lets you share anonymous thoughts, secrets, or regrets—tagged by theme—and allows others to leave public comments using pseudonymous nicknames.
+**WhisperChain** is a decentralized confession wall built on the Ethereum Sepolia testnet. It lets you share anonymous thoughts, secrets, or regrets, tagged by theme, and allows others to leave public comments using pseudonymous nicknames.
 
 ### Live on the Ethereum Sepolia Testnet
 
