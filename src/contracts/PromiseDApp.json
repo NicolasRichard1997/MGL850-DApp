@@ -1,9 +1,72 @@
 [
 	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "promiseIndex",
+				"type": "uint256"
+			}
+		],
+		"name": "CommentAdded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "nickname",
+				"type": "string"
+			}
+		],
+		"name": "NicknameSet",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "index",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "category",
+				"type": "string"
+			}
+		],
+		"name": "PromiseAdded",
+		"type": "event"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "_promiseId",
+				"name": "_promiseIndex",
 				"type": "uint256"
 			},
 			{
@@ -19,11 +82,6 @@
 	},
 	{
 		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "_userHash",
-				"type": "bytes32"
-			},
 			{
 				"internalType": "string",
 				"name": "_message",
@@ -43,35 +101,14 @@
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "commentsByPromise",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "commenter",
-				"type": "address"
-			},
-			{
 				"internalType": "string",
-				"name": "message",
+				"name": "_nickname",
 				"type": "string"
-			},
-			{
-				"internalType": "uint256",
-				"name": "timestamp",
-				"type": "uint256"
 			}
 		],
-		"stateMutability": "view",
+		"name": "setNickname",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -81,9 +118,9 @@
 			{
 				"components": [
 					{
-						"internalType": "bytes32",
-						"name": "userHash",
-						"type": "bytes32"
+						"internalType": "address",
+						"name": "user",
+						"type": "address"
 					},
 					{
 						"internalType": "string",
@@ -96,9 +133,9 @@
 						"type": "string"
 					},
 					{
-						"internalType": "uint256",
+						"internalType": "uint40",
 						"name": "timestamp",
-						"type": "uint256"
+						"type": "uint40"
 					}
 				],
 				"internalType": "struct PromiseDApp.Promise[]",
@@ -113,7 +150,7 @@
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "_promiseId",
+				"name": "_promiseIndex",
 				"type": "uint256"
 			}
 		],
@@ -123,7 +160,7 @@
 				"components": [
 					{
 						"internalType": "address",
-						"name": "commenter",
+						"name": "user",
 						"type": "address"
 					},
 					{
@@ -132,14 +169,33 @@
 						"type": "string"
 					},
 					{
-						"internalType": "uint256",
+						"internalType": "uint40",
 						"name": "timestamp",
-						"type": "uint256"
+						"type": "uint40"
 					}
 				],
 				"internalType": "struct PromiseDApp.Comment[]",
 				"name": "",
 				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			}
+		],
+		"name": "getNickname",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
 			}
 		],
 		"stateMutability": "view",
@@ -156,9 +212,9 @@
 		"name": "promises",
 		"outputs": [
 			{
-				"internalType": "bytes32",
-				"name": "userHash",
-				"type": "bytes32"
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
 			},
 			{
 				"internalType": "string",
@@ -171,9 +227,9 @@
 				"type": "string"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "uint40",
 				"name": "timestamp",
-				"type": "uint256"
+				"type": "uint40"
 			}
 		],
 		"stateMutability": "view",

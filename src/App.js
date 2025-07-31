@@ -11,51 +11,73 @@ function App() {
   const [provider, setProvider] = useState(null);
   const [contract, setContract] = useState(null);
   const [commentInputs, setCommentInputs] = useState({});
+  const [nickname, setNickname] = useState("");
+  const [nicknameSet, setNicknameSet] = useState(false);
+  const [userAddress, setUserAddress] = useState("");
 
-  // Connect to MetaMask
   const connectWallet = async () => {
     if (!window.ethereum) {
-      alert("Please install MetaMask first.");
+      alert("Please install MetaMask.");
       return;
     }
+
     await window.ethereum.request({ method: "eth_requestAccounts" });
     const ethProvider = new ethers.BrowserProvider(window.ethereum);
     const signer = await ethProvider.getSigner();
+    const address = await signer.getAddress();
+    const c = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
     const network = await ethProvider.getNetwork();
     if (network.chainId !== 11155111n) {
       alert("Please connect to Sepolia testnet.");
       return;
     }
-    const c = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+    setUserAddress(address);
     setWalletConnected(true);
     setProvider(ethProvider);
     setContract(c);
+
+    const existingNickname = await c.nicknames(address);
+    if (existingNickname && existingNickname.length > 0) {
+      setNickname(existingNickname);
+      setNicknameSet(true);
+    }
   };
 
-  // Submit a promise
+  const handleSetNickname = async () => {
+    if (!nickname || !contract) return;
+    try {
+      const tx = await contract.setNickname(nickname, { gasLimit: 100_000 });
+      await tx.wait();
+      alert("Pseudonyme enregistré !");
+      setNicknameSet(true);
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de l'enregistrement du pseudonyme.");
+    }
+  };
+
   const submitPromise = async () => {
     if (!contract || promiseInput.length === 0 || promiseInput.length > 140) return;
     try {
-      const tx = await contract.addPromise(promiseInput, category);
+      const tx = await contract.addPromise(promiseInput, category, { gasLimit: 100_000 });
       setPromiseInput("");
       setCategory("Confession");
-      alert("Promesse soumise avec succès. Celle-ci sera visible lorsque la transaction sera confirmée.");
+      alert("Promesse soumise !");
       await tx.wait();
       loadPromises();
     } catch (err) {
       console.error(err);
-      alert("La transaction a échoué. Veuillez réessayer.");
+      alert("La transaction a échoué.");
     }
   };
 
-  // Load all promises and comments
   const loadPromises = async () => {
     try {
       const ethProvider = new ethers.BrowserProvider(window.ethereum || ethers.getDefaultProvider("sepolia"));
       const readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, ethProvider);
 
       const result = await readContract.getAllPromises();
-
       if (!result || result.length === 0) {
         setPromises([]);
         return;
@@ -63,38 +85,42 @@ function App() {
 
       const formatted = await Promise.all(result.map(async (p, idx) => {
         const rawComments = await readContract.getComments(idx);
+        const commentData = await Promise.all(rawComments.map(async c => {
+          const userNickname = await readContract.getNickname(c.user);
+          return {
+            message: c.message,
+            timestamp: Number(c.timestamp),
+            date: new Date(Number(c.timestamp) * 1000).toLocaleString(),
+            nickname: userNickname || "🕵️ Anonyme"
+          };
+        }));
+
         return {
           index: idx,
           message: p.message,
           category: p.category,
           timestamp: Number(p.timestamp),
           date: new Date(Number(p.timestamp) * 1000).toLocaleString(),
-          comments: rawComments.map(c => ({
-            message: c.message,
-            timestamp: Number(c.timestamp),
-            date: new Date(Number(c.timestamp) * 1000).toLocaleString(),
-          }))
+          comments: commentData
         };
       }));
 
       setPromises(formatted.reverse());
     } catch (error) {
-      console.warn("Failed to load promises:", error);
+      console.warn("Erreur lors du chargement :", error);
       setPromises([]);
     }
   };
 
-  // Handle comment input change
   const handleCommentChange = (id, value) => {
     setCommentInputs(prev => ({ ...prev, [id]: value }));
   };
 
-  // Submit a comment
   const submitComment = async (promiseId) => {
     const text = commentInputs[promiseId];
     if (!contract || !text || text.length === 0 || text.length > 200) return;
     try {
-      const tx = await contract.addComment(promiseId, text);
+      const tx = await contract.addComment(promiseId, text, { gasLimit: 100_000 });
       setCommentInputs(prev => ({ ...prev, [promiseId]: "" }));
       alert("Commentaire envoyé !");
       await tx.wait();
@@ -119,11 +145,19 @@ function App() {
         <>
           <p>Portefeuille connecté ✅</p>
 
-          <div style={{ padding: "0.5rem", background: "#fff3cd", border: "1px solid #ffeeba", marginBottom: "1rem" }}>
-            🔐 <strong>Poste anonymement :</strong> utilise un portefeuille temporaire pour plus d’anonymat.
-            <br />
-            👉 <a href="https://www.burnerwallet.io/" target="_blank" rel="noopener noreferrer">Essayer Burner Wallet ↗</a>
-          </div>
+          {!nicknameSet ? (
+            <div>
+              <input
+                type="text"
+                placeholder="Choisis un pseudonyme"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+              />
+              <button onClick={handleSetNickname}>Enregistrer pseudonyme</button>
+            </div>
+          ) : (
+            <p>Pseudonyme: <strong>{nickname}</strong></p>
+          )}
 
           <label htmlFor="category">Catégorie</label><br />
           <select
@@ -176,7 +210,7 @@ function App() {
               <ul style={{ marginTop: "1rem", paddingLeft: "1rem" }}>
                 {p.comments.map((c, ci) => (
                   <li key={ci} style={{ marginBottom: "0.5rem" }}>
-                    💬 {c.message} <br />
+                    💬 <strong>{c.nickname}</strong>: {c.message} <br />
                     <small>{c.date}</small>
                   </li>
                 ))}
