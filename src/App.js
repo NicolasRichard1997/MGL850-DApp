@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import { CONTRACT_ADDRESS, CONTRACT_ABI } from './contracts/PromiseDApp';
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from './contracts/WhisperChainDApp';
 
 function App() {
   const [walletConnected, setWalletConnected] = useState(false);
