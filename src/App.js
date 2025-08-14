@@ -3,17 +3,18 @@ import { ethers } from "ethers";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from './contracts/WhisperChainDApp';
 
 function App() {
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [promiseInput, setPromiseInput] = useState("");
-  const [category, setCategory] = useState("Confession");
-  const [promises, setPromises] = useState([]);
-  const [provider, setProvider] = useState(null);
-  const [contract, setContract] = useState(null);
-  const [commentInputs, setCommentInputs] = useState({});
-  const [nickname, setNickname] = useState("");
-  const [nicknameSet, setNicknameSet] = useState(false);
-  const [userAddress, setUserAddress] = useState("");
+  const [walletConnected, setWalletConnected] = useState(false); // Si le portefeuille est connecté
+  const [confessionInput, setConfessionInput] = useState("");    // Texte de la confession
+  const [category, setCategory] = useState("Confession");        // Catégorie sélectionnée (Par défaut à Confession)
+  const [confessions, setConfessions] = useState([]);            // Liste des confessions
+  const [provider, setProvider] = useState(null);                // Provider Ethereum
+  const [contract, setContract] = useState(null);                // Contrat Ethereum
+  const [commentInputs, setCommentInputs] = useState({});        // Texte des commentaires par confession
+  const [nickname, setNickname] = useState("");                  // Pseudo de l'utilisateur
+  const [nicknameSet, setNicknameSet] = useState(false);         // Si le pseudo est défini
+  const [userAddress, setUserAddress] = useState("");            // Adresse de l'utilisateur
 
+  // Connexion du portefeuille MetaMask
   const connectWallet = async () => {
     try {
       if (!window.ethereum) {
@@ -34,15 +35,15 @@ function App() {
       }
 
       const contractWithSigner = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-      const contractWithProvider = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, ethProvider);
 
       setUserAddress(address);
       setWalletConnected(true);
       setProvider(ethProvider);
       setContract(contractWithSigner);
 
+      // Vérifie si l'utilisateur a déjà un pseudonyme
       try {
-        const existingNickname = await contractWithProvider.getNickname(address);
+        const existingNickname = await contractWithSigner.getNickname(address);
         if (existingNickname && existingNickname.length > 0) {
           setNickname(existingNickname);
           setNicknameSet(true);
@@ -56,25 +57,23 @@ function App() {
     }
   };
 
+  // Définir le pseudonyme de l'utilisateur
   const handleSetNickname = async () => {
-    if (!nickname || nickname.trim().length === 0) {
+    if (!nickname.trim()) {
       alert("Nickname cannot be empty.");
       return;
     }
-    if (!contract) {
-      alert("Contract is not connected.");
-      return;
-    }
+    if (!contract) return alert("Contract not connected.");
 
     try {
       const cleanNickname = nickname.trim();
       if (cleanNickname.length > 20) {
-        alert("Nickname is too long (max 20 characters).");
+        alert("Nickname is too long (max 20 chars).");
         return;
       }
 
-      const tx = await contract.setNickname(cleanNickname, { gasLimit: 100_000 });
-      alert("⛏️ Nickname transaction submitted. It will appear once the transaction is confirmed...");
+      const tx = await contract.setNickname(cleanNickname);
+      alert("⛏️ Transaction submitted, waiting for confirmation...");
       await tx.wait();
       alert("✅ Nickname saved!");
       setNicknameSet(true);
@@ -84,100 +83,104 @@ function App() {
     }
   };
 
-  const submitPromise = async () => {
-    if (!contract || promiseInput.length === 0 || promiseInput.length > 140) return;
+  // Soumettre une nouvelle confession
+  const submitConfession = async () => {
+    if (!contract || confessionInput.length === 0 || confessionInput.length > 140) return;
 
     try {
-      const tx = await contract.addPromise(promiseInput, category);
-      alert("⛏️ Promise submitted! It will appear once the transaction is confirmed...");
+      const timestamp = Math.floor(Date.now() / 1000);
+      const tx = await contract.addConfession(confessionInput, category, timestamp);
+      alert("⛏️ Confession submitted! Waiting for confirmation...");
       await tx.wait();
-      alert("✅ Promise recorded!");
-      setPromiseInput("");
+      alert("✅ Confession recorded!");
+      setConfessionInput("");
       setCategory("Confession");
-      loadPromises();
+      loadConfessions(); // Recharge les confessions
     } catch (err) {
       console.error(err);
       alert("Transaction failed.");
     }
   };
 
-  const loadPromises = async () => {
+  // Charger toutes les confessions depuis le contrat
+  const loadConfessions = async () => {
     try {
-      const ethProvider = new ethers.BrowserProvider(window.ethereum || ethers.getDefaultProvider("sepolia"));
+      if (!window.ethereum) return;
+      const ethProvider = new ethers.BrowserProvider(window.ethereum);
       const readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, ethProvider);
 
-      const result = await readContract.getAllPromises();
+      const result = await readContract.getAllConfessions();
       if (!result || result.length === 0) {
-        setPromises([]);
+        setConfessions([]);
         return;
       }
 
-      const formatted = await Promise.all(result.map(async (p, idx) => {
+      // Formate les confessions et les commentaires
+      const formatted = await Promise.all(result.map(async (c, idx) => {
         const rawComments = await readContract.getComments(idx);
-        const commentData = await Promise.all(rawComments.map(async c => {
+        const commentData = await Promise.all(rawComments.map(async cm => {
           let userNickname = "🕵️ Anonymous";
           try {
-            const fetchedNickname = await readContract.getNickname(c.user);
-            if (fetchedNickname && fetchedNickname.length > 0) {
-              userNickname = fetchedNickname;
-            }
-          } catch (e) {
-            console.warn(`No nickname for ${c.user}`);
-          }
+            const fetchedNickname = await readContract.getNickname(cm.user);
+            if (fetchedNickname && fetchedNickname.length > 0) userNickname = fetchedNickname;
+          } catch {}
 
           return {
-            message: c.message,
-            timestamp: Number(c.timestamp),
-            date: new Date(Number(c.timestamp) * 1000).toLocaleString(),
+            message: cm.message,
+            timestamp: Number(cm.timestamp),
+            date: new Date(Number(cm.timestamp) * 1000).toLocaleString(),
             nickname: userNickname
           };
         }));
 
         return {
           index: idx,
-          message: p.message,
-          category: p.category,
-          timestamp: Number(p.timestamp),
-          date: new Date(Number(p.timestamp) * 1000).toLocaleString(),
+          message: c.message,
+          category: c.category,
+          timestamp: Number(c.timestamp),
+          date: new Date(Number(c.timestamp) * 1000).toLocaleString(),
           comments: commentData
         };
       }));
 
-      setPromises(formatted.reverse());
-    } catch (error) {
-      console.warn("Load error:", error);
-      setPromises([]);
+      setConfessions(formatted.reverse());
+    } catch (err) {
+      console.warn(err);
+      setConfessions([]);
     }
   };
 
+  // Met à jour le texte d'un commentaire pour une confession spécifique
   const handleCommentChange = (id, value) => {
     setCommentInputs(prev => ({ ...prev, [id]: value }));
   };
 
-  const submitComment = async (promiseId) => {
-    const text = commentInputs[promiseId];
+  // Soumettre un commentaire sous une confession
+  const submitComment = async (confessionId) => {
+    const text = commentInputs[confessionId];
     if (!contract || !text || text.length === 0 || text.length > 200) return;
 
     try {
-      const tx = await contract.addComment(promiseId, text);
-      alert("⛏️ Comment submitted! It will appear once the transaction is confirmed...");
+      const tx = await contract.addComment(confessionId, text);
+      alert("⛏️ Comment submitted! Waiting for confirmation...");
       await tx.wait();
       alert("✅ Comment posted!");
-      setCommentInputs(prev => ({ ...prev, [promiseId]: "" }));
-      loadPromises();
+      setCommentInputs(prev => ({ ...prev, [confessionId]: "" }));
+      loadConfessions(); 
     } catch (err) {
       console.error(err);
       alert("Failed to submit comment.");
     }
   };
 
+  // Charger les confessions au démarrage de la page
   useEffect(() => {
-    loadPromises();
+    loadConfessions();
   }, []);
 
   return (
     <div style={{ padding: "2rem", fontFamily: "Arial, sans-serif", maxWidth: "850px", margin: "0 auto", lineHeight: "1.6" }}>
-      <h1 style={{ fontSize: "2rem", marginBottom: "1rem" }}> WhisperChain, Whispers on the Blockchain</h1>
+      <h1 style={{ fontSize: "2rem", marginBottom: "1rem" }}>WhisperChain, Whispers on the Blockchain</h1>
 
       {!walletConnected ? (
         <button onClick={connectWallet} style={buttonStyle}>Connect MetaMask</button>
@@ -196,9 +199,7 @@ function App() {
               />
               <button onClick={handleSetNickname} style={buttonStyle}>Save Nickname</button>
             </div>
-          ) : (
-            <p>👤 Nickname: <strong>{nickname}</strong></p>
-          )}
+          ) : <p>👤 Nickname: <strong>{nickname}</strong></p>}
 
           <div style={{ margin: "1rem 0" }}>
             <label htmlFor="category">Category</label><br />
@@ -219,13 +220,13 @@ function App() {
           <textarea
             rows="4"
             cols="50"
-            placeholder="Write your anonymous promise or confession (max 140 chars)"
-            value={promiseInput}
-            onChange={(e) => setPromiseInput(e.target.value)}
+            placeholder="Write your anonymous confession (max 140 chars)"
+            value={confessionInput}
+            onChange={(e) => setConfessionInput(e.target.value)}
             style={{ ...inputStyle, width: "100%", resize: "none" }}
           />
           <br />
-          <button onClick={submitPromise} style={buttonStyle}>Submit Anonymously</button>
+          <button onClick={submitConfession} style={buttonStyle}>Submit Anonymously</button>
         </>
       )}
 
@@ -238,30 +239,31 @@ function App() {
         Others can read and leave <strong>public comments</strong> on your post, creating a shared space for empathy, support, or reflection.
         You can also tag your confession with a category to give it context, whether it's a heartfelt regret, a secret hope, or just a random thought.
       </p>
+
       <ul style={{ listStyle: "none", padding: 0 }}>
-        {promises.map((p) => (
-          <li key={p.index} style={cardStyle}>
-            <strong>[{p.category}]</strong><br />
-            <p style={{ margin: "0.5rem 0" }}>{p.message}</p>
-            <small>{p.date}</small>
+        {confessions.map((c) => (
+          <li key={c.index} style={cardStyle}>
+            <strong>[{c.category}]</strong><br />
+            <p style={{ margin: "0.5rem 0" }}>{c.message}</p>
+            <small>{c.date}</small>
 
             <div style={{ marginTop: "1rem" }}>
               <input
                 type="text"
                 placeholder="Write a comment (max 200 characters)"
-                value={commentInputs[p.index] || ""}
-                onChange={(e) => handleCommentChange(p.index, e.target.value)}
+                value={commentInputs[c.index] || ""}
+                onChange={(e) => handleCommentChange(c.index, e.target.value)}
                 style={{ ...inputStyle, width: "75%" }}
               />
-              <button onClick={() => submitComment(p.index)} style={{ ...buttonStyle, marginLeft: "0.5rem" }}>Comment</button>
+              <button onClick={() => submitComment(c.index)} style={{ ...buttonStyle, marginLeft: "0.5rem" }}>Comment</button>
             </div>
 
-            {p.comments.length > 0 && (
+            {c.comments.length > 0 && (
               <ul style={{ marginTop: "1rem", paddingLeft: "1rem" }}>
-                {p.comments.map((c, ci) => (
+                {c.comments.map((cm, ci) => (
                   <li key={ci} style={{ marginBottom: "0.5rem" }}>
-                    💬 <strong>{c.nickname}</strong>: {c.message}<br />
-                    <small>{c.date}</small>
+                    💬 <strong>{cm.nickname}</strong>: {cm.message}<br />
+                    <small>{cm.date}</small>
                   </li>
                 ))}
               </ul>
