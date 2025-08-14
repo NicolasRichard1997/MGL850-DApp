@@ -38,6 +38,14 @@ npm start
 
 ---
 
+## How to test
+
+```bash
+npm test
+```
+
+---
+
 ## 🛠 Tech Stack
 
 * React
